@@ -3,3 +3,5 @@ venv
 data.txt
 pre-main.py
 .cache
+.env
+conversation_history.json

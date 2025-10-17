@@ -1,30 +1,63 @@
 # PulseAI Voice-Activated Assistant
 
-PulseAI is a voice-activated AI assistant developed in Python. It uses speech recognition to interact with users and perform various tasks like opening websites, providing conversational responses, fetching information from Wikipedia, playing songs(Beta), taking screenshots, and remembering user notes. Designed for a more personalized experience, PulseAI uses your name and responds based on the time of day.
+PulseAI is a voice-activated AI assistant developed in Python. It uses speech recognition and a local large language model to interact with users and perform various tasks like opening websites, providing conversational responses, fetching information from Wikipedia, playing songs(Beta), taking screenshots, and remembering user notes. Designed for a more personalized experience, PulseAI uses your name and responds based on the time of day.
 
 ## Features
 
-- Voice Commands: Listens to user commands, interprets them, and takes appropriate actions.
-- Greeting: Customizes greetings based on the time of day.
-- Website Navigation: Opens popular websites by name (e.g., Google, YouTube, Wikipedia).
-- Information Retrieval: Fetches summaries from Wikipedia for "what is" queries.
-- Screenshot Capture: Takes a screenshot and saves it to the user’s Pictures directory.
-- Memory: Remembers information upon request and recalls it when asked.
-- Conversational Responses: Provides responses for casual conversations.
-- Music Search: Finds and plays songs on spotify using the Spotify Web API.
-- Date and Time: Reads the current date and time upon request.
+- **Voice Commands**: Listens to user commands, interprets them, and takes appropriate actions.
+- **Intelligent Responses**: Uses a local LLM (Llama 3.2) to provide intelligent and context-aware responses.
+- **Greeting**: Customizes greetings based on the time of day.
+- **Website Navigation**: Opens popular websites by name (e.g., Google, YouTube, Wikipedia).
+- **Information Retrieval**: Fetches summaries from Wikipedia for "what is" queries.
+- **Screenshot Capture**: Takes a screenshot and saves it to the user’s Pictures directory.
+- **Memory**: Remembers information upon request and recalls it when asked.
+- **Conversational Responses**: Provides responses for casual conversations.
+- **Music Search**: Finds and plays songs on spotify using the Spotify Web API.
+- **Date and Time**: Reads the current date and time upon request.
 
 ## Requirements
 
 To use PulseAI, make sure you have the following Python packages installed:
 
 ```bash
-pip install pyttsx3 SpeechRecognition wikipedia-api pyautogui googlesearch-python spotipy pyaudio 
+    pip install -r requirements.txt 
+```
+Additionally, you'll need 'Torch' specifically the cuda enabled version for efficient proccessing.
+
+## CUDA Installation 
+
+https://developer.nvidia.com/cuda-toolkit
+
+Use the above link to download the Nvidia developer CUDA Toolkit.
+After downloading the CUDA Toolkit
+Download specific torch distribution for the toolkit
+
+*Current project toolkit version and torch version*
+
+CUDA 13.0
+torch==2.8.0+cu129
+torchvision==0.23.0+cu129
+
+install this torch distribution from the command line using the following command
+
+```bash
+    pip install torch torchvision --index-url https://download.pytorch.org/whl/cu129
 ```
 
-Also, PulseAI is configured to use Brave Browser for web searches. Ensure Brave is installed, or modify the path in the code to your preferred browser.
+
+Also, PulseAI is configured to use Firefox for web searches. Ensure Firefox is installed, or modify the path in the code to your preferred browser.
 
 ## Usage
+0. Configuration:
+
+- <p>create a .env file with your own spotify dev api keys and set transformer cache path and spotify path<br>
+use the variable names as follows in the .env file<br>
+SPOTIPY_ID = "your cliend id"<br>
+SPOTIPY_SECRET = "your client secret"<br>
+SPOTIFY_PATH = "path to spotify.exe on your device"<br>
+BROWSER_PATH = "path to firefox.exe on your device"<br>
+TRANSFORMER_CACHE = "your path here"<br>
+<p>
 
 1. Initialize:
 
@@ -50,7 +83,7 @@ Also, PulseAI is configured to use Brave Browser for web searches. Ensure Brave 
 
 1. main.py: The main file containing the code for the assistant.
 
-2. data.txt: Stores notes or information you ask PulseAI to remember.
+2. conversation_history.json: Stores old conversations as context so it always remembers almost everything
 
 
 ## Code Overview
@@ -88,7 +121,7 @@ You can customize PulseAI by:
 
 - Incorrect Recognition: If speech recognition accuracy is low, try speaking more clearly or adjusting recog.pause_threshold in the command() function.
 
-- Missing Wikipedia Summaries: Make sure you have an internet connection for fetching data from Wikipedia.
+- Problems with browser search: Make sure you have an internet connection for fetching data from Internet.
 
 ## Spotify API Usage
 

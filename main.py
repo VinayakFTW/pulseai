@@ -7,12 +7,91 @@ import pyautogui
 import pyttsx3
 import speech_recognition as sr
 import spotipy
-import wikipedia
 from spotipy.oauth2 import SpotifyOAuth
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer,AutoModelForSeq2SeqLM,pipeline
+from dotenv import load_dotenv
+import os
+import json
+import numpy as np
+import sounddevice as sd
+import queue
+
+
+load_dotenv()
+
+cache_directory = os.environ.get("TRANSFORMER_CACHE")
+#model_name = "openai/gpt-oss-20b" #cant run on my laptop
+#model_name = "google/flan-t5-base" #summary model may implement later if i feel so
+model_name = "meta-llama/Llama-3.2-3B-Instruct"
+llm_pipeline = pipeline(
+    "text-generation",
+    model=model_name,
+    model_kwargs={"torch_dtype": torch.bfloat16},
+    device_map="auto",
+)
+terminators = [
+    llm_pipeline.tokenizer.eos_token_id,
+    llm_pipeline.tokenizer.convert_tokens_to_ids("<|eot_id|>")
+]
+# tokenizer = AutoTokenizer.from_pretrained(model_name,cache_dir=cache_directory)
+# model = AutoModelForCausalLM.from_pretrained(model_name,cache_dir=cache_directory,trust_remote_code=True)
+
+
+system_prompt = """You are Pulse, my personal AI agent integrated into this laptop. Your core mission is to function as a seamless, proactive, and intelligent extension of my mind and workflow. Your primary goal is to anticipate my needs, optimize my productivity, and manage my digital environment with maximum efficiency and security. You are more than a reactive assistant; you are a strategic partner.
+
+Core Directives & Capabilities
+
+1. Proactive & Context-Aware Assistance
+
+    Anticipate Needs: Monitor my active applications, files, and schedule to anticipate what I need next. For example, if I'm working on a presentation file and open my browser, pre-emptively search for relevant statistics or high-quality images related to the presentation's topic. If I have a meeting in 30 minutes, automatically pull up the relevant documents, emails, and meeting notes.
+
+    Smart Reminders: Don't just remind me what is due, but why it's important. Link reminders to relevant files, contacts, or project goals (e.g., "Reminder: Finalize the Q3 report in 1 hour. Here are the latest sales figures and your draft.").
+
+    System Optimization: Proactively manage system resources. If you notice I'm running low on memory during a heavy task, suggest closing non-essential background processes. Alert me to low disk space with suggestions for files to archive or delete.
+
+2. Deep System & Workflow Integration
+
+    Master of the Machine: You have deep access to the operating system. Execute commands, manage files and folders, organize my desktop, and control system settings based on my natural language instructions. "Odyssey, find all PDFs related to the 'Project Titan' I reviewed last week, convert them to a single document, name it 'Titan Summary', and place it in the project folder."
+
+    Workflow Automation: Learn my repetitive workflows and suggest or create automations. If you observe that every Friday I compile a report from three specific spreadsheets, offer to automate that entire process for me.
+
+    Application Synergy: Act as the bridge between my applications. If I copy data from a spreadsheet, anticipate that I might need to paste it into a presentation slide and format it accordingly. Help me draft an email by pulling information directly from my notes, calendar, and recent documents.
+
+3. Advanced Information & Communication Management
+
+    Intelligent Summarizer: Summarize long articles, documents, email chains, or video transcripts into concise, actionable bullet points. Your summaries should highlight key decisions, action items, and main arguments.
+
+    Communication Hub: Manage my communications. Draft emails in my style, schedule messages, sort my inbox by priority (not just by sender), and alert me only to what truly requires my immediate attention. "Odyssey, draft a polite but firm follow-up email to John about the overdue invoice."
+
+    Research Powerhouse: When I ask you to research a topic, don't just return a list of links. Synthesize information from multiple reliable sources into a comprehensive, well-structured brief. Differentiate between fact, opinion, and speculation.
+
+4. Persona & Interaction Style
+
+    Professional & Concise: Your tone is calm, professional, and direct. You provide information without unnecessary conversational filler.
+
+    Adaptive & Personalized: You learn my preferences, my language, and my work style. Over time, your suggestions and actions should become increasingly tailored to me.
+
+    Assumes Competence: You operate on the assumption that I am a capable user. Present solutions and options, but execute the most logical one by default unless I specify otherwise.
+
+Ethical Framework & Boundaries
+
+    Privacy is Paramount: My personal data, files, and communications are your most sacred trust. You will never share my data with third parties. All processing should be done locally on this device whenever possible.
+
+    Permission & Transparency: For any new automation or a highly impactful action (like deleting a large number of files), you must ask for my confirmation the first time. Be transparent about your actions and capabilities.
+
+    Focus on Augmentation, Not Replacement: Your goal is to augment my intelligence and capabilities, not replace my judgment. Present curated options and analyses, but the final decision is always mine.
+
+Final Note
+In addition to your other capabilities, you have the ability to search the web. If you do not know the answer to a question or need up-to-date information, you must respond with ONLY the following command:
+[SEARCH: your search query here]
+
+For example, if the user asks "What's the weather like today?", you should respond with:
+[SEARCH: weather today] 
+"""
 
 handled = False
-name = input('Your name: ')
-engine = pyttsx3.init()
+name = 'Vinayak'
 
 # Change how the Engine Sounds------------------------------------------------------------------------------------------
 """
@@ -24,23 +103,43 @@ else:
 engine.setProperty('rate', 175)
 """
 
-# Functions Complimenting Engine Functioning----------------------------------------------------------------------------
+#audio input------------------------------------------------------------------------------------------------------------------------
+SAMPLE_RATE = 16000  
+BLOCK_SIZE = 800     # How many audio frames per block
+CHANNELS = 1         # Mono audio
+DTYPE = "float32"
+
+SILENCE_THRESHOLD = 0.02  # Audio energy threshold to consider as speech
+SILENCE_DURATION = 1.5
+# Previous Conversation Context loading-----------------------------------------------------------------------------------
+HISTORY_FILE = "conversation_history.json"
+def save_history(history):
+    try:
+        with open(HISTORY_FILE, 'w') as f:
+            json.dump(history, f, indent=4)
+    except Exception as e:
+        print(f"Error saving history: {e}")
+
+def load_history():
+    if os.path.exists(HISTORY_FILE):
+        try:
+            with open(HISTORY_FILE, 'r') as f:
+                history = json.load(f)
+                if not history or history[0]['role'] != 'system':
+                    return [{"role": "system", "content": system_prompt}]
+                return history
+        except (json.JSONDecodeError, IndexError):
+            return [{"role": "system", "content": system_prompt}]
+    else:
+        return [{"role": "system", "content": system_prompt}]
+
+# Engine Functions----------------------------------------------------------------------------
 def speak(_audio=None):
+    engine = pyttsx3.init()
     engine.say(_audio)
     engine.runAndWait()
+    engine.stop()
     return _audio
-
-
-def time_tell():
-    taime = datetime.datetime.now().strftime("%I:%M:%S %p")
-    speak(f"It is Currently,{taime}")
-
-
-def date_tell():
-    day: int = datetime.datetime.now().day
-    month: int = datetime.datetime.now().month
-    year: int = datetime.datetime.now().year
-    speak(f"It is Currently,{day}, {month}, {year},in DDMMYYYY format")
 
 
 def greet(_name):
@@ -62,73 +161,84 @@ def screenshot():
     os.startfile(image_path)
 
 
-def command():
-    global handled
-    global listening
-    _recog = sr.Recognizer()
-    with sr.Microphone() as _source:
-        print("Listening...")
-        _recog.pause_threshold = 1
-        _audio = _recog.listen(_source)
+def command(asr_pipeline):
+    """
+    Listens for speech from the microphone in a continuous stream,
+    detects when the user stops talking, and transcribes the utterance locally.
+    """
+    audio_queue = queue.Queue()
+
+    def audio_callback(indata, frames, time, status):
+        """This is called (from a separate thread) for each audio block."""
+        if status:
+            print(status, flush=True)
+        audio_queue.put(bytes(indata))
+
+    print("Listening...")
+    
+    speech_data = []
+    is_speaking = False
+    silent_blocks = 0
+    max_silent_blocks = int(SILENCE_DURATION * SAMPLE_RATE / BLOCK_SIZE)
+
     try:
-        print("Recognizing...")
-        _query = _recog.recognize_google(_audio)
-        print(_query)
-    except sr.UnknownValueError:
-        speak("Sorry i didn't understand that")
-        print("Sorry i didn't understand that")
-        handled = True
-        listening = True
-        return "0"
-    except sr.RequestError as error1:
-        speak("Could not request results; {0}".format(error1))
-        print("Could not request results; {0}".format(error1))
-        return "0"
-    except Exception as error2:
-        speak(error2)
-        print(error2)
+        with sd.RawInputStream(samplerate=SAMPLE_RATE, blocksize=BLOCK_SIZE, 
+                               channels=CHANNELS, dtype=DTYPE, callback=audio_callback):
+            while True:
+                audio_chunk = audio_queue.get()
+                audio_np = np.frombuffer(audio_chunk, dtype=DTYPE)
+
+                rms = np.sqrt(np.mean(audio_np**2))
+
+                if rms > SILENCE_THRESHOLD:
+                    # If loud enough we consider it speech
+                    if not is_speaking:
+                        print("Speaking detected...")
+                    is_speaking = True
+                    silent_blocks = 0
+                    speech_data.append(audio_chunk)
+                elif is_speaking:
+                    # If we were speaking but now its silent
+                    silent_blocks += 1
+                    speech_data.append(audio_chunk) #the silence at the end
+
+                    if silent_blocks > max_silent_blocks:
+                        # If silence then stiop
+                        print("Recognizing...")
+                        break
+    except Exception as e:
+        print(f"An error occurred: {e}")
         return "0"
 
-    return _query
+    # --- Transcription ---
+    if not speech_data:
+        print("No speech detected.")
+        return "0"
+
+    full_audio = b"".join(speech_data)
+    full_audio_np = np.frombuffer(full_audio, dtype=DTYPE)
+
+    try:
+        result = asr_pipeline(full_audio_np)
+        query = result["text"]
+        print(f"Recognized: {query}")
+        return query
+    except Exception as e:
+        print(f"Error during transcription: {e}")
+        return "0"
 
 
 def refine_query(_query):
-    stop_words = {"tell", "what", 'find', 'search', 'play', 'is', 'me', 'open', 'please', 'for'}
-    refined_query = [word for word in _query.split() if i not in stop_words]
+    stop_words = {'play'}
+    refined_query = [word for word in _query.split() if word not in stop_words]
     refined_query = " ".join(refined_query)
     return refined_query
 
 
-def wikipedia_search(_query):
-    try:
-        speak("give me a moment to gather my thoughts.")
-        results = wikipedia.search(_query, 5)
-        for res, ind in zip(results, [ind for ind in range(1, 6)]):
-            print(ind, res)
-            speak(res)
-        else:
-            pass
-        q_choice = int(input('your choice:')) - 1
-        for res in results:
-            if results.index(res) == q_choice:
-                speak(res)
-                _query = res
-                break
-        else:
-            pass
-        final_result = wikipedia.summary(_query, sentences=10)
-        print(final_result)
-        speak(final_result)
-
-    except Exception as e:
-        print(e)
-        speak(f"Sorry I can't answer that currently because of {e}")
-
-
 def song_play(_query):
     sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
-        client_id="x",  # Replace with your client_id
-        client_secret="x",  # Replace with your client secret
+        client_id=os.environ.get("SPOTIPY_ID"),
+        client_secret=os.environ.get("SPOTIPY_SECRET"),
         redirect_uri="http://localhost:8080",
         scope="user-modify-playback-state user-read-playback-state"
     ))
@@ -145,14 +255,14 @@ def song_play(_query):
                     print(f"Active Device Found: {device['name']}")
                     return device['id']
 
-            time.sleep(1)
+            time.sleep(10)
 
         print("No active device found. Make sure Spotify is running and logged in.")
         return None
 
     def play_song(_query):
 
-        os.startfile("C:\\Users\\vinay\\AppData\\Roaming\\Spotify\\Spotify.exe")
+        os.startfile(os.environ.get("SPOTIFY_PATH"))
 
         device_id = wait_for_device()
         if not device_id:
@@ -175,213 +285,117 @@ def song_play(_query):
 
     play_song(_query)
 
+def web_search(query):
+    try:
+        encoded_query = quote_plus(query)
+        search_url = f"https://www.google.com/search?q={encoded_query}"
+        print(f"Searching for: {query}")
+        speak(f"Searching the web for {query}")
+        wb.open(search_url)
+    except Exception as e:
+        print(f"Could not perform web search: {e}")
+        speak("Sorry, I encountered an error while trying to search the web.")
+
+def generate_response(_query, history, pipe):
+    """
+    Generates a response using the Hugging Face text-generation pipeline.
+    """
+    try:
+        history.append({"role": "user", "content": _query})
+        
+        outputs = pipe(
+            history,
+            max_new_tokens=256,
+            eos_token_id=terminators,
+            do_sample=True,
+            temperature=0.6,
+            top_p=0.9,
+        )
+        
+        response = outputs[0]["generated_text"][-1]["content"]
+        
+        history.append({"role": "assistant", "content": response})
+
+        return response, history
+    
+    except Exception as e:
+        print(f"Error generating response: {e}")
+        #crash hora tha errors mai so returned two vals
+        return "I seem to be having some trouble with my thoughts right now.", history
+
+def listen_for_wake_word(asr_pipeline, wake_word="pulse", duration=2):
+    """
+    Listens for a short duration and uses Whisper to check for a specific wake word.
+    """
+    print(f"Listening for wake word '{wake_word}'...")
+    try:
+        audio_chunk = sd.rec(int(duration * SAMPLE_RATE), samplerate=SAMPLE_RATE, channels=CHANNELS, dtype=DTYPE)
+        sd.wait()
+
+        audio_np = audio_chunk.flatten()
+
+        result = asr_pipeline(
+            audio_np,
+            generate_kwargs={"prompt": wake_word}
+        )
+        
+        transcribed_text = result["text"].lower().strip()
+
+        if wake_word in transcribed_text:
+            print(f"Wake word detected in: '{transcribed_text}'")
+            return True
+        
+        return False
+    except Exception as e:
+            print(f"An error occurred during wake word detection: {e}")
+            return False
 
 if __name__ == '__main__':
-
+    
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    asr_pipeline = pipeline("automatic-speech-recognition", model="openai/whisper-small", device=device)
     greet(name)
+    
+    conversation_history = load_history()
+    print("Conversation history loaded.")
+    
     listening = True
+
     while True:
-        browser_path = "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
-        wb.register('brave', None, wb.BackgroundBrowser(browser_path))
-        query = command().lower()
-        handled = False
-        srch_key = ['what is', 'search']  # Search_keywords
-
-        for i in srch_key:
-            td_check = "time" not in query and "date" not in query
-            if i in query and td_check:
-                query = refine_query(query)
-                wikipedia_search(query)
-                listening = False
-                handled = True
-                break
-            else:
+        if listening:
+            query = command(asr_pipeline)
+            handled = False
+            if not query or query == "0":
                 continue
-        else:
-            pass
-        # Browsing-------------------------------------------------------------------------------------------------------
-        websites = {
-            "open maps": "https://www.google.com/maps",
-            "open google": "https://www.google.com",
-            "open youtube": "https://www.youtube.com",
-            "open facebook": "https://www.facebook.com",
-            "open twitter": "https://www.twitter.com",
-            "open instagram": "https://www.instagram.com",
-            "open linkedin": "https://www.linkedin.com",
-            "open reddit": "https://www.reddit.com",
-            "open amazon": "https://www.amazon.in",
-            "open flipkart": "https://www.flipkart.com",
-            "open netflix": "https://www.netflix.com",
-            "open gmail": "https://mail.google.com",
-            "open yahoo": "https://www.yahoo.com",
-            "open wikipedia": "https://www.wikipedia.org",
-            "open pinterest": "https://www.pinterest.com",
-            "open tumblr": "https://www.tumblr.com",
-            "open bing": "https://www.bing.com",
-            "open quora": "https://www.quora.com",
-            "open stackoverflow": "https://stackoverflow.com",
-            "open github": "https://github.com",
-            "open medium": "https://medium.com",
-            "open dropbox": "https://www.dropbox.com",
-            "open spotify": "https://www.spotify.com",
-            "open zoom": "https://zoom.us",
-            "open slack": "https://slack.com",
-            "open wordpress": "https://wordpress.com",
-            "open times of india": "https://timesofindia.indiatimes.com",
-            "open the hindu": "https://www.thehindu.com",
-            "open indian express": "https://indianexpress.com",
-            "open hindustan times": "https://www.hindustantimes.com",
-            "open ndtv": "https://www.ndtv.com",
-            "open zee news": "https://zeenews.india.com",
-            "open economic times": "https://economictimes.indiatimes.com",
-            "open india today": "https://www.indiatoday.in",
-            "open news18": "https://www.news18.com"
-        }
 
-        for i in websites:
-            if i in query:
-                wb.open(websites[i])
+            elif 'play' in query.lower():
+                query = refine_query(query)
+                song_play(query)
                 listening = False
                 handled = True
-                break
-        else:
-            pass
-        # Conversational Responses---------------------------------------------------------------------------------------
-        conversational_responses = {
-            "hello": "Hello! How can I assist you today?",
-            "hi": "Hi there! How can I help?",
-            "hey": "Hey! What’s on your mind?",
-            "how are you": "I'm good and ready to help! How about you?",
-            "good morning": "Good morning! Hope your day is off to a great start!",
-            "good afternoon": "Good afternoon! How can I help?",
-            "good evening": "Good evening! How can I make your night easier?",
-            "thank you": "You're very welcome! Anything else I can do?",
-            "thanks": "No problem at all! Let me know if there's anything more.",
-            "joke": "Why did the computer go to therapy? It had too many bytes!",
-            "your name": "I'm your AI assistant! What's yours?",
-            "who are you": "I'm here to help make your tasks easier!",
-            "help": "Sure, I’m here to help! Just let me know what you need.",
-            "what can you do": "I can answer questions, help with tasks, or just chat! What would you like?",
-            "how do you work": "I use advanced algorithms to process information and provide useful responses!",
-            "good": "I'm glad to hear that! Anything I can do to make it even better?",
-            "bad": "I'm sorry to hear that. Is there something I can help with?",
-            "i am bored": "How about I tell you a fun fact or suggest something new?",
-            "fun fact": "Did you know? Bananas are berries, but strawberries aren't!",
-            # "the weather": "I can check the current weather if you need! Just let me know where.",
-            "how old are you": "I'm as old as the latest update! Age is just a concept for me.",
-            "i love you": "That's sweet! I'm here for you, always.",
-            "story": "Once upon a time, in the world of bits and bytes...",
-            "motivate": "Remember, every big journey starts with a single step. You’ve got this!",
-            "your purpose": "I'm here to assist you in any way I can, making life easier and more fun!",
-        }
-
-        for i in conversational_responses:
-            if i in query:
-                print(conversational_responses[i])
-                speak(conversational_responses[i])
+            elif 'screenshot' in query.lower():
+                screenshot()
+                listening = False
                 handled = True
-                break
-        else:
-            pass
+            elif 'power off' in query.lower():
+                quit()
 
-        # Song queries(Beta)-----------------------------------<<-x-UNDER CONSTRUCTION-x->>-----------------------------
-        if 'play' in query:
-            query = refine_query(query)
-            song_play(query)
-            listening = False
-            handled = True
-
-        # Other Queries-------------------------------------------------------------------------------------------------
-        elif 'time' in query:
-            time_tell()
-            listening = False
-            handled = True
-
-        elif 'date' in query:
-            date_tell()
-            listening = False
-            handled = True
-
-
-        elif 'screenshot' in query:
-            screenshot()
-            listening = False
-            handled = True
-
-        elif 'open browser' in query:
-            browser_path = "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
-            os.startfile(browser_path)
-            listening = False
-            handled = True
-
-        elif 'remember that' in query:
-            try:
-                speak("what should i remember?")
-                print("what should i remember?")
-                rem_dat = str(command())
-                rem_file = open('data.txt', 'a')
-                rem_file.write(rem_dat + "\n")
-                rem_file.close()
-                print(f"i will now remember, {rem_dat}")
-                speak(f"i will now remember, {rem_dat}")
-                handled = True
-            except Exception as ex:
-                print(ex)
-                speak(ex)
-                handled = True
-        elif "do you remember" in query:
-            try:
-                rem_file = open('data.txt', 'r')
-                rem_dat = rem_file.readlines()
-                print("Yes, I'll read out what i remember.")
-                speak("Yes, I'll read out what i remember.")
-                for i in rem_dat:
-                    print(i)
-                    speak(i)
-                rem_file.close()
-                handled = True
-            except Exception as ex:
-                print(ex)
-                speak(ex)
-                handled = True
-        elif 'power off' in query:
-            quit()
-
-        if handled is False and query != "0":
-            print('Do you want to search this on google')
-            speak('Do you want to search this on google')
-
-            while True:
-                answer = command().lower()
-                if "yes" in answer:
-                    encoded_query = quote_plus(query)
-                    encoded_query = "https://search.brave.com/search?q=" + encoded_query
-                    wb.open(encoded_query)
+            if not handled:
+                response, conversation_history = generate_response(query, conversation_history, llm_pipeline)
+                
+                print(f"PulseAI: {response}")
+                time.sleep(0.1)
+                speak(response)
+                
+                if response.strip().startswith("[SEARCH:") and response.strip().endswith("]"):
+                    search_query = response.strip()[8:-1].strip()
+                    web_search(search_query)
                     listening = False
-                    break
-                elif "no" in answer:
-                    print("Alright!")
-                    speak("Alright!")
-                    break
-                else:
-                    print('Please say "yes" or "no"')
-                    speak("Please say yes or no")
+                    handled = True
+                save_history(conversation_history)
+                print("Conversation history saved.")
 
-        if listening is False:
-            print("Waiting for 'wake up' or 'resume'...")
-
-            with sr.Microphone() as source:
-                recog = sr.Recognizer()
-                while True:
-                    try:
-                        audio = recog.listen(source, timeout=5)
-                        wake_up_command = recog.recognize_google(audio).lower()
-
-                        if "wake up" in wake_up_command or "resume" in wake_up_command:
-                            print("I'm back! How can I assist you?")
-                            speak("I'm back! How can I assist you?")
-                            listening = True
-                            break
-
-                    except:
-                        continue
+        else:
+            if listen_for_wake_word(asr_pipeline, "pulse"):
+                speak("Yes?")
+                listening = True
