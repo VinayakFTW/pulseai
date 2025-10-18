@@ -444,11 +444,6 @@ if __name__ == '__main__':
                 send_whatsapp_message(query)
                 listening = False
                 handled = True
-
-            elif 'call' in query.lower():
-                place_phone_call(query)
-                listening = False
-                handled = True
             
             elif 'power off' in query.lower():
                 print("Goodbye!")
