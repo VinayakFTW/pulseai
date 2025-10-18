@@ -1,3 +1,8 @@
+## v1.1.0
+
+**1 - Functionality Addition**
+- **Added a whatsapp messaging functionality**: the assistant can now send whatsapp messages to your contacts using a vcf file for extracting contact details.
+
 ## v1.0.0
 
 **1 - Major Overhaul**
@@ -13,7 +18,7 @@
 ## v0.5.0
 
 **1 - Reformatted code**<br>
-  *pressed a many keys(a bit too many) here and there to make the code look a bit beautiful(and better)*<br>
+  *pressed many keys(a bit too many) here and there to make the code look a bit beautiful(and better)*<br>
 
 **2 - Updated the play_song feature**<br>
   *Now you can play songs on spotify using your voice*<br>

@@ -58,6 +58,7 @@ SPOTIFY_PATH = "path to spotify.exe on your device"<br>
 BROWSER_PATH = "path to firefox.exe on your device"<br>
 TRANSFORMER_CACHE = "your path here"<br>
 <p>
+- <p>export your contacts from google contacts as a .vcf file and place it in the model's working directory<p>
 
 1. Initialize:
 
@@ -73,6 +74,7 @@ TRANSFORMER_CACHE = "your path here"<br>
 - Remember Notes: Say "Remember that [note]" to save information.
 - Recall Notes: Use "Do you remember?" to hear stored information.
 - Play a Song: Say "Play [song name]" to play a song on spotify.
+- Send a message on whatsapp: Say send a message to "recipient". You'll be asked to dictate your message. 
 - End Session: Say "Power off" to exit PulseAI.
 
 3. Error Handling:
@@ -83,12 +85,13 @@ TRANSFORMER_CACHE = "your path here"<br>
 
 1. main.py: The main file containing the code for the assistant.
 
-2. conversation_history.json: Stores old conversations as context so it always remembers almost everything
+2. conversation_history.json: Stores old conversations as context so it always remembers almost everything(can get biased in a few situations)
 
+3. contacts.vcf: this is a file you have to manually place from google contacts in order to use the whatsapp messaging functionality.
 
 ## Code Overview
 
-1. Initialization: Configures the pyttsx3 engine and registers Brave Browser.
+1. Initialization: Configures the pyttsx3 engine and registers Firefox Browser.
 
 2. Main Functions:
     - speak(): Text-to-speech for spoken responses.
@@ -99,7 +102,7 @@ TRANSFORMER_CACHE = "your path here"<br>
             **IF DOWNLOADED FROM MICROSOFT STORE THEN REPLACE THE PATH WITH "start spotify"<br>if downloaded from the spotify website then simply replace with spotify.exe path on your system**
         - play_song(): The helper function that actually plays the song after connecting to the spotify api.<br>
             **REPLACE THE "client_id" AND "client_secret" WITH YOUR ID AND API FROM https://developer.spotify.com**
-
+    - send_whatsapp_message(): this function uses pywhatkit to send a message to one of your contacts extracted from the .vcf file and using existing whatsapp session on your default browser it sends the dictated message.
 3. Loop Execution: The main loop listens for commands and checks them against a set of conditions for executing specific tasks.
 
 ## Customization

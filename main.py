@@ -16,7 +16,9 @@ import json
 import numpy as np
 import sounddevice as sd
 import queue
-
+import vobject
+import pywhatkit
+import requests
 
 load_dotenv()
 
@@ -27,7 +29,7 @@ model_name = "meta-llama/Llama-3.2-3B-Instruct"
 llm_pipeline = pipeline(
     "text-generation",
     model=model_name,
-    model_kwargs={"torch_dtype": torch.bfloat16},
+    model_kwargs={"dtype": torch.bfloat16},
     device_map="auto",
 )
 terminators = [
@@ -219,7 +221,7 @@ def command(asr_pipeline):
     full_audio_np = np.frombuffer(full_audio, dtype=DTYPE)
 
     try:
-        result = asr_pipeline(full_audio_np)
+        result = asr_pipeline(full_audio_np,generate_kwargs={"language":"en"})
         query = result["text"]
         print(f"Recognized: {query}")
         return query
@@ -336,7 +338,7 @@ def listen_for_wake_word(asr_pipeline, wake_word="pulse", duration=2):
 
         result = asr_pipeline(
             audio_np,
-            generate_kwargs={"prompt": wake_word}
+            generate_kwargs={"language":"en"}
         )
         
         transcribed_text = result["text"].lower().strip()
@@ -350,9 +352,69 @@ def listen_for_wake_word(asr_pipeline, wake_word="pulse", duration=2):
             print(f"An error occurred during wake word detection: {e}")
             return False
 
+def get_vcf_contacts(file_path):
+    """
+    Parses a .vcf file and returns a dictionary of contacts.
+    """
+    contacts = {}
+    try:
+        with open(file_path, 'r') as f:
+            for card in vobject.readComponents(f):
+                if hasattr(card, 'fn'):
+                    name = card.fn.value
+                    phone = None
+                    if hasattr(card, 'tel'):
+                        phone = card.tel.value
+                    contacts[name.lower()] = {
+                        'name': name,
+                        'phone': phone,
+                        'email': None
+                    }
+        return contacts
+    except Exception as e:
+        print(f"Error parsing VCF file: {e}")
+        return {}
+
+def find_contact(name):
+    return contacts.get(name.lower())
+
+def send_whatsapp_message(_query):
+    
+    contact_name = _query.lower().split()
+    contact_name.remove("send")
+    contact_name.remove("a")
+    contact_name.remove("message")
+    contact_name.remove("to")
+    contact_name = " ".join(contact_name)
+    if '.' in contact_name:
+        contact_name = contact_name.split('.')[0]
+        print(contact_name)
+    if contact_name and contact_name != "0":
+        contact = find_contact(contact_name)
+        if contact and contact['phone']:
+            print(f"phone number found : {contact['phone']}")
+            speak("What should the message say?")
+            message = command(asr_pipeline)
+            message += "\n**THIS MESSAGE WAS SENT BY PULSE(VINAYAK'S AI ASSISTANT)**"
+            if message and message != "0":
+                print(f"message : {message}")
+                try:
+                    pywhatkit.sendwhatmsg_instantly(contact['phone'], message)
+                    speak("Message sent successfully!")
+                except Exception as e:
+                    print(f"Error sending WhatsApp message: {e}")
+                    speak("Sorry, I couldn't send the message.")
+        else:
+            speak("Sorry, I couldn't find that contact or they don't have a phone number.")
+
+
+# def email(_msg):
+
 if __name__ == '__main__':
     
-    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    get_contacts = get_vcf_contacts("contacts.vcf")
+    contacts = {**get_contacts}
+    device = "cpu"
     asr_pipeline = pipeline("automatic-speech-recognition", model="openai/whisper-small", device=device)
     greet(name)
     
@@ -377,7 +439,20 @@ if __name__ == '__main__':
                 screenshot()
                 listening = False
                 handled = True
+
+            elif 'send a message' in query.lower():
+                send_whatsapp_message(query)
+                listening = False
+                handled = True
+
+            elif 'call' in query.lower():
+                place_phone_call(query)
+                listening = False
+                handled = True
+            
             elif 'power off' in query.lower():
+                print("Goodbye!")
+                speak("Goodbye!")
                 quit()
 
             if not handled:
@@ -392,9 +467,14 @@ if __name__ == '__main__':
                     web_search(search_query)
                     listening = False
                     handled = True
+
+                elif response.strip().startswith("[OPEN BROWSER") and response.strip().endswith("]"):
+                    wb.open("https://www.google.com")
+                    listening = False
+                    handled = True
+                
                 save_history(conversation_history)
                 print("Conversation history saved.")
-
         else:
             if listen_for_wake_word(asr_pipeline, "pulse"):
                 speak("Yes?")

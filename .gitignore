@@ -5,3 +5,5 @@ pre-main.py
 .cache
 .env
 conversation_history.json
+contacts.vcf
+PyWhatKit_DB.txt
