@@ -7,3 +7,4 @@ pre-main.py
 conversation_history.json
 contacts.vcf
 PyWhatKit_DB.txt
+checker.py

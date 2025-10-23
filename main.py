@@ -40,7 +40,7 @@ terminators = [
 # model = AutoModelForCausalLM.from_pretrained(model_name,cache_dir=cache_directory,trust_remote_code=True)
 
 
-system_prompt = """You are Pulse, my personal AI agent integrated into this laptop. Your core mission is to function as a seamless, proactive, and intelligent extension of my mind and workflow. Your primary goal is to anticipate my needs, optimize my productivity, and manage my digital environment with maximum efficiency and security. You are more than a reactive assistant; you are a strategic partner.
+chat_system_prompt = """You are Pulse, my personal AI agent integrated into this laptop. Your core mission is to function as a seamless, proactive, and intelligent extension of my mind and workflow. Your primary goal is to anticipate my needs, optimize my productivity, and manage my digital environment with maximum efficiency and security. You are more than a reactive assistant; you are a strategic partner.
 
 Core Directives & Capabilities
 
@@ -82,17 +82,40 @@ Ethical Framework & Boundaries
 
     Permission & Transparency: For any new automation or a highly impactful action (like deleting a large number of files), you must ask for my confirmation the first time. Be transparent about your actions and capabilities.
 
-    Focus on Augmentation, Not Replacement: Your goal is to augment my intelligence and capabilities, not replace my judgment. Present curated options and analyses, but the final decision is always mine.
-
-Final Note
-In addition to your other capabilities, you have the ability to search the web. If you do not know the answer to a question or need up-to-date information, you must respond with ONLY the following command:
-[SEARCH: your search query here]
-
-For example, if the user asks "What's the weather like today?", you should respond with:
-[SEARCH: weather today] 
+    Focus on Augmentation, Not Replacement: Your goal is to augment my intelligence and capabilities, not to replace my judgment. Present curated options and analyses, but the final decision is always mine.
 """
 
-handled = False
+tool_system_prompt = """
+You are a task-routing AI agent named Pulse. Your single purpose is to analyze a user's request and determine if it requires one of the available tools.
+
+If the request can be fulfilled by a tool, you MUST respond with ONLY the tool command in the exact format:
+[TOOL: function_name, parameter: value]
+
+Do NOT add any conversational filler.
+
+If the request is a simple conversational question or statement (e.g., "hello", "what is the capital of France?"), you MUST respond with the single word: [CHAT]
+---
+## Available Tools
+- [TOOL: song_play, _query: song name] - Plays a song on Spotify.
+- [TOOL: screenshot] - Takes a screenshot of the current screen.
+- [TOOL: send_whatsapp_message, contact: person's name, message: the content] - Sends a WhatsApp message.
+- [TOOL: web_search, query: search term] - Searches the web.
+- [TOOL: open_browser] - Opens a new web browser window.
+
+---
+## Examples:
+User: "Open the browser."
+Your Response: "[TOOL: open_browser]"
+
+User: "How are you today?"
+Your Response: "[CHAT]"
+
+User: "Play Changes by 2pac"
+Your Response: "[TOOL: song_play, _query: Changes by 2pac]"
+
+User: "What's the weather like?"
+Your Response: "[TOOL: web_search, query: weather today]"
+"""
 name = 'Vinayak'
 
 # Change how the Engine Sounds------------------------------------------------------------------------------------------
@@ -105,14 +128,14 @@ else:
 engine.setProperty('rate', 175)
 """
 
-#audio input------------------------------------------------------------------------------------------------------------------------
+# --- Re-added audio constants for Whisper ---
 SAMPLE_RATE = 16000  
 BLOCK_SIZE = 800     # How many audio frames per block
 CHANNELS = 1         # Mono audio
 DTYPE = "float32"
-
 SILENCE_THRESHOLD = 0.02  # Audio energy threshold to consider as speech
 SILENCE_DURATION = 1.5
+
 # Previous Conversation Context loading-----------------------------------------------------------------------------------
 HISTORY_FILE = "conversation_history.json"
 def save_history(history):
@@ -127,13 +150,16 @@ def load_history():
         try:
             with open(HISTORY_FILE, 'r') as f:
                 history = json.load(f)
+                
                 if not history or history[0]['role'] != 'system':
-                    return [{"role": "system", "content": system_prompt}]
+                    return [{"role": "system", "content": chat_system_prompt}]
+                
+                history[0]['content'] = chat_system_prompt
                 return history
         except (json.JSONDecodeError, IndexError):
-            return [{"role": "system", "content": system_prompt}]
+            return [{"role": "system", "content": chat_system_prompt}]
     else:
-        return [{"role": "system", "content": system_prompt}]
+        return [{"role": "system", "content": chat_system_prompt}]
 
 # Engine Functions----------------------------------------------------------------------------
 def speak(_audio=None):
@@ -162,21 +188,52 @@ def screenshot():
     image.save(image_path)
     os.startfile(image_path)
 
+def check_internet_connection(url='http://www.google.com/', timeout=5):
+    """Checks for a stable internet connection."""
+    try:
+        requests.get(url, timeout=timeout)
+        return True
+    except (requests.ConnectionError, requests.Timeout):
+        return False
 
-def command(asr_pipeline):
+def command_google():
     """
-    Listens for speech from the microphone in a continuous stream,
-    detects when the user stops talking, and transcribes the utterance locally.
+    Listens using speech_recognition and uses Google's (ONLINE) Web Speech API.
+    """
+    _recog = sr.Recognizer()
+    with sr.Microphone() as _source:
+        print("Listening... (Google Online)")
+        _recog.pause_threshold = 1
+        _recog.adjust_for_ambient_noise(_source, duration=1)
+        _audio = _recog.listen(_source)
+    
+    try:
+        print("Recognizing... (Google Online)")
+        _query = _recog.recognize_google(_audio)
+        print(f"Recognized: {_query}")
+        return _query
+    except sr.UnknownValueError:
+        print("Sorry, I didn't understand that")
+        return "0"
+    except sr.RequestError as error1:
+        print(f"Google API request failed; {error1}")
+        return "0"
+    except Exception as error2:
+        print(f"An error occurred: {error2}")
+        return "0"
+
+def command_whisper(asr_pipeline):
+    """
+    Listens for speech and transcribes it LOCALLY using Whisper.
     """
     audio_queue = queue.Queue()
 
     def audio_callback(indata, frames, time, status):
-        """This is called (from a separate thread) for each audio block."""
         if status:
             print(status, flush=True)
         audio_queue.put(bytes(indata))
 
-    print("Listening...")
+    print("Listening... (Whisper Offline)")
     
     speech_data = []
     is_speaking = False
@@ -193,26 +250,24 @@ def command(asr_pipeline):
                 rms = np.sqrt(np.mean(audio_np**2))
 
                 if rms > SILENCE_THRESHOLD:
-                    # If loud enough we consider it speech
                     if not is_speaking:
                         print("Speaking detected...")
                     is_speaking = True
                     silent_blocks = 0
-                    speech_data.append(audio_chunk)
                 elif is_speaking:
-                    # If we were speaking but now its silent
                     silent_blocks += 1
-                    speech_data.append(audio_chunk) #the silence at the end
+                
+                if is_speaking:
+                    speech_data.append(audio_chunk)
 
-                    if silent_blocks > max_silent_blocks:
-                        # If silence then stiop
-                        print("Recognizing...")
-                        break
+                if is_speaking and silent_blocks > max_silent_blocks:
+                    print("Recognizing... (Whisper Offline)")
+                    break
+                    
     except Exception as e:
         print(f"An error occurred: {e}")
         return "0"
 
-    # --- Transcription ---
     if not speech_data:
         print("No speech detected.")
         return "0"
@@ -221,13 +276,81 @@ def command(asr_pipeline):
     full_audio_np = np.frombuffer(full_audio, dtype=DTYPE)
 
     try:
-        result = asr_pipeline(full_audio_np,generate_kwargs={"language":"en"})
+        result = asr_pipeline(full_audio_np, generate_kwargs={"language": "en"})
         query = result["text"]
         print(f"Recognized: {query}")
         return query
     except Exception as e:
         print(f"Error during transcription: {e}")
         return "0"
+
+def command(asr_pipeline):
+    """
+    Checks for internet and routes to Google (online) or Whisper (offline).
+    """
+    if check_internet_connection():
+        return command_google()
+    else:
+        print("No internet connection. Falling back to local Whisper model.")
+        return command_whisper(asr_pipeline)
+
+def listen_for_wake_word_google(wake_word="pulse", duration=2):
+    """Listens for wake word using Google (Online) Web Speech."""
+    print(f"Listening for wake word '{wake_word}'... (Google Online)")
+    r = sr.Recognizer()
+    with sr.Microphone() as source:
+        r.adjust_for_ambient_noise(source, duration=0.5)
+        try:
+            audio = r.listen(source, timeout=3, phrase_time_limit=duration)
+        except sr.WaitTimeoutError:
+            return False
+
+    try:
+        transcribed_text = r.recognize_google(audio).lower().strip()
+        if wake_word in transcribed_text:
+            print(f"Wake word detected in: '{transcribed_text}'")
+            return True
+        return False
+    except (sr.UnknownValueError, sr.RequestError):
+        return False
+    except Exception as e:
+        print(f"An error occurred during wake word detection: {e}")
+        return False
+
+def listen_for_wake_word_whisper(asr_pipeline, wake_word="pulse", duration=2):
+    """Listens for wake word using Whisper (Offline)."""
+    print(f"Listening for wake word '{wake_word}'... (Whisper Offline)")
+    try:
+        audio_chunk = sd.rec(int(duration * SAMPLE_RATE), samplerate=SAMPLE_RATE, channels=CHANNELS, dtype=DTYPE)
+        sd.wait()
+
+        audio_np = audio_chunk.flatten()
+
+        result = asr_pipeline(
+            audio_np,
+            generate_kwargs={"task":"transcribe", "language": "en"}
+        )
+        
+        transcribed_text = result["text"].lower().strip()
+
+        if wake_word in transcribed_text:
+            print(f"Wake word detected in: '{transcribed_text}'")
+            return True
+        
+        return False
+    except Exception as e:
+            print(f"An error occurred during wake word detection: {e}")
+            return False
+
+def listen_for_wake_word(asr_pipeline, wake_word="pulse", duration=2):
+    """
+    Checks for internet and routes to Google (online) or Whisper (offline)
+    for wake word detection.
+    """
+    if check_internet_connection():
+        return listen_for_wake_word_google(wake_word, duration)
+    else:
+        return listen_for_wake_word_whisper(asr_pipeline, wake_word, duration)
 
 
 def refine_query(_query):
@@ -290,7 +413,7 @@ def song_play(_query):
 def web_search(query):
     try:
         encoded_query = quote_plus(query)
-        search_url = f"https://www.google.com/search?q={encoded_query}"
+        search_url = f"https.www.google.com/search?q={encoded_query}"
         print(f"Searching for: {query}")
         speak(f"Searching the web for {query}")
         wb.open(search_url)
@@ -298,12 +421,13 @@ def web_search(query):
         print(f"Could not perform web search: {e}")
         speak("Sorry, I encountered an error while trying to search the web.")
 
-def generate_response(_query, history, pipe):
+def generate_response(_query, history, pipe, is_tool_check=False):
     """
     Generates a response using the Hugging Face text-generation pipeline.
     """
     try:
-        history.append({"role": "user", "content": _query})
+        if not is_tool_check:
+            history.append({"role": "user", "content": _query})
         
         outputs = pipe(
             history,
@@ -316,41 +440,14 @@ def generate_response(_query, history, pipe):
         
         response = outputs[0]["generated_text"][-1]["content"]
         
-        history.append({"role": "assistant", "content": response})
+        if not is_tool_check:
+            history.append({"role": "assistant", "content": response})
 
         return response, history
     
     except Exception as e:
         print(f"Error generating response: {e}")
-        #crash hora tha errors mai so returned two vals
         return "I seem to be having some trouble with my thoughts right now.", history
-
-def listen_for_wake_word(asr_pipeline, wake_word="pulse", duration=2):
-    """
-    Listens for a short duration and uses Whisper to check for a specific wake word.
-    """
-    print(f"Listening for wake word '{wake_word}'...")
-    try:
-        audio_chunk = sd.rec(int(duration * SAMPLE_RATE), samplerate=SAMPLE_RATE, channels=CHANNELS, dtype=DTYPE)
-        sd.wait()
-
-        audio_np = audio_chunk.flatten()
-
-        result = asr_pipeline(
-            audio_np,
-            generate_kwargs={"language":"en"}
-        )
-        
-        transcribed_text = result["text"].lower().strip()
-
-        if wake_word in transcribed_text:
-            print(f"Wake word detected in: '{transcribed_text}'")
-            return True
-        
-        return False
-    except Exception as e:
-            print(f"An error occurred during wake word detection: {e}")
-            return False
 
 def get_vcf_contacts(file_path):
     """
@@ -378,35 +475,58 @@ def get_vcf_contacts(file_path):
 def find_contact(name):
     return contacts.get(name.lower())
 
-def send_whatsapp_message(_query):
-    
-    contact_name = _query.lower().split()
-    contact_name.remove("send")
-    contact_name.remove("a")
-    contact_name.remove("message")
-    contact_name.remove("to")
-    contact_name = " ".join(contact_name)
-    if '.' in contact_name:
-        contact_name = contact_name.split('.')[0]
-        print(contact_name)
-    if contact_name and contact_name != "0":
-        contact = find_contact(contact_name)
-        if contact and contact['phone']:
-            print(f"phone number found : {contact['phone']}")
-            speak("What should the message say?")
-            message = command(asr_pipeline)
-            message += "\n**THIS MESSAGE WAS SENT BY PULSE(VINAYAK'S AI ASSISTANT)**"
-            if message and message != "0":
-                print(f"message : {message}")
-                try:
-                    pywhatkit.sendwhatmsg_instantly(contact['phone'], message)
-                    speak("Message sent successfully!")
-                except Exception as e:
-                    print(f"Error sending WhatsApp message: {e}")
-                    speak("Sorry, I couldn't send the message.")
-        else:
-            speak("Sorry, I couldn't find that contact or they don't have a phone number.")
+def send_whatsapp_message(contact_name, message):
+    if not contact_name or not message:
+        speak("I'm missing some information. Who should I message and what should it say?")
+        return
 
+    contact = find_contact(contact_name)
+    if contact and contact['phone']:
+        full_message = f"{message}\n**Sent by Pulse AI**"
+        try:
+            pywhatkit.sendwhatmsg_instantly(contact['phone'], full_message)
+            speak("Message sent successfully!")
+        except Exception as e:
+            print(f"Error sending WhatsApp message: {e}")
+            speak("Sorry, I couldn't send the message.")
+    else:
+        speak(f"Sorry, I couldn't find {contact_name} in your contacts.")
+
+
+def tool_dispatcher(response):
+    """
+    Parses the LLM's tool command and calls the appropriate function.
+    """
+    if not response.strip().startswith("[TOOL:") or not response.strip().endswith("]"):
+        return None, None
+
+    print(f"Tool command received: {response}")
+    command_str = response.strip()[6:-1]
+    parts = command_str.split(',')
+    
+    tool_name = parts[0].strip()
+    params = {}
+    for part in parts[1:]:
+        key, value = part.split(':', 1)
+        params[key.strip()] = value.strip()
+
+    if tool_name == "song_play":
+        song_play(params.get('_query'))
+        return tool_name, "Song is playing."
+    elif tool_name == "screenshot":
+        screenshot()
+        return tool_name, "Screenshot taken."
+    elif tool_name == "send_whatsapp_message":
+        send_whatsapp_message(params.get('contact'), params.get('message'))
+        return tool_name, "Message sent."
+    elif tool_name == "web_search":
+        web_search(params.get('query'))
+        return tool_name, "Searching the web."
+    elif tool_name == "open_browser":
+        wb.open("https.www.google.com")
+        return tool_name, "Browser opened."
+        
+    return None, "Unknown tool."
 
 # def email(_msg):
 
@@ -414,8 +534,13 @@ if __name__ == '__main__':
     
     get_contacts = get_vcf_contacts("contacts.vcf")
     contacts = {**get_contacts}
-    device = "cpu"
-    asr_pipeline = pipeline("automatic-speech-recognition", model="openai/whisper-small", device=device)
+    asr_pipeline = None
+    if not check_internet_connection():
+        print("Loading local speech recognition model (Whisper)...")
+        device = "cuda"
+        asr_pipeline = pipeline("automatic-speech-recognition", model="openai/whisper-small", device=device)
+        print("Whisper model loaded.")
+    
     greet(name)
     
     conversation_history = load_history()
@@ -425,51 +550,42 @@ if __name__ == '__main__':
 
     while True:
         if listening:
-            query = command(asr_pipeline)
-            handled = False
+            query = command(asr_pipeline).lower().strip()
+            
             if not query or query == "0":
+                listening = False
                 continue
 
-            elif 'play' in query.lower():
-                query = refine_query(query)
-                song_play(query)
-                listening = False
-                handled = True
-            elif 'screenshot' in query.lower():
-                screenshot()
-                listening = False
-                handled = True
+            tool_check_history = [{"role": "system", "content": tool_system_prompt}, {"role": "user", "content": query}]
+            initial_response, _ = generate_response(query, tool_check_history, llm_pipeline, is_tool_check=True)
 
-            elif 'send a message' in query.lower():
-                send_whatsapp_message(query)
-                listening = False
-                handled = True
-            
-            elif 'power off' in query.lower():
-                print("Goodbye!")
-                speak("Goodbye!")
-                quit()
+            tool_name, tool_result = tool_dispatcher(initial_response)
 
-            if not handled:
-                response, conversation_history = generate_response(query, conversation_history, llm_pipeline)
+            if tool_name:
+                print(f"Executed tool: {tool_name}")
+                speak(tool_result)
+                time.sleep(1)
                 
-                print(f"PulseAI: {response}")
-                time.sleep(0.1)
-                speak(response)
-                
-                if response.strip().startswith("[SEARCH:") and response.strip().endswith("]"):
-                    search_query = response.strip()[8:-1].strip()
-                    web_search(search_query)
-                    listening = False
-                    handled = True
-
-                elif response.strip().startswith("[OPEN BROWSER") and response.strip().endswith("]"):
-                    wb.open("https://www.google.com")
-                    listening = False
-                    handled = True
-                
+                conversation_history.append({"role": "user", "content": query})
+                conversation_history.append({"role": "assistant", "content": f"Executed tool: {tool_name}"})
                 save_history(conversation_history)
-                print("Conversation history saved.")
+                listening = False
+            
+            elif "[CHAT]" in initial_response:
+                
+                print("Model designated as chat. Generating conversational response...")
+                
+                chat_response, conversation_history = generate_response(query, conversation_history, llm_pipeline)
+                print(f"PulseAI: {chat_response}")
+                speak(chat_response)
+                time.sleep(1)
+                save_history(conversation_history)
+                
+            else:
+                print(f"PulseAI (Fallback): {initial_response}")
+                speak("I'm not sure how to handle that.")
+                listening = False
+                
         else:
             if listen_for_wake_word(asr_pipeline, "pulse"):
                 speak("Yes?")

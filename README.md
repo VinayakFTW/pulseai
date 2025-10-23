@@ -1,137 +1,337 @@
-# PulseAI Voice-Activated Assistant
+# PulseAI 🎙️🤖
 
-PulseAI is a voice-activated AI assistant developed in Python. It uses speech recognition and a local large language model to interact with users and perform various tasks like opening websites, providing conversational responses, fetching information from Wikipedia, playing songs(Beta), taking screenshots, and remembering user notes. Designed for a more personalized experience, PulseAI uses your name and responds based on the time of day.
+<div align="center">
 
-## Features
+**An Intelligent Voice-Activated AI Assistant with Local LLM Integration**
 
-- **Voice Commands**: Listens to user commands, interprets them, and takes appropriate actions.
-- **Intelligent Responses**: Uses a local LLM (Llama 3.2) to provide intelligent and context-aware responses.
-- **Greeting**: Customizes greetings based on the time of day.
-- **Website Navigation**: Opens popular websites by name (e.g., Google, YouTube, Wikipedia).
-- **Information Retrieval**: Fetches summaries from Wikipedia for "what is" queries.
-- **Screenshot Capture**: Takes a screenshot and saves it to the user’s Pictures directory.
-- **Memory**: Remembers information upon request and recalls it when asked.
-- **Conversational Responses**: Provides responses for casual conversations.
-- **Music Search**: Finds and plays songs on spotify using the Spotify Web API.
-- **Date and Time**: Reads the current date and time upon request.
+[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Transformers](https://img.shields.io/badge/🤗-Transformers-yellow.svg)](https://huggingface.co/transformers/)
 
-## Requirements
+*Your proactive AI companion that understands, learns, and executes*
 
-To use PulseAI, make sure you have the following Python packages installed:
+</div>
 
+---
+
+## 🌟 Overview
+
+**PulseAI** is a sophisticated voice-activated AI assistant that runs locally on your machine, featuring advanced natural language processing powered by Meta's Llama 3.2 model. Unlike traditional voice assistants, PulseAI is designed to be a proactive strategic partner that anticipates your needs, automates workflows, and seamlessly integrates with your digital ecosystem.
+
+### ✨ Key Features
+
+- 🎤 **Hybrid Speech Recognition** - Automatic fallback between Google Web Speech API (online) and Whisper (offline)
+- 🧠 **Local LLM Processing** - Privacy-focused AI using Llama 3.2 3B Instruct model
+- 🎵 **Spotify Integration** - Voice-controlled music playback
+- 💬 **WhatsApp Automation** - Send messages via voice commands
+- 🔍 **Web Search** - Intelligent web queries with contextual understanding
+- 📸 **Screenshot Capture** - Quick screen captures on demand
+- 🔄 **Conversation Memory** - Persistent context across sessions
+- 🌐 **Internet-Aware** - Seamless online/offline mode switching
+- 🛠️ **Tool Routing System** - Smart command classification and execution
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- **Python 3.8+**
+- **CUDA-compatible GPU** (recommended for optimal performance)
+- **8GB+ RAM** (16GB recommended)
+- **Spotify Premium Account**
+- **Active internet connection** (for initial setup and online features)
+
+### Installation
+
+1. **Clone the repository**
 ```bash
-    pip install -r requirements.txt 
+git clone https://github.com/VinayakFTW/pulseai.git
+cd pulseai
 ```
-Additionally, you'll need 'Torch' specifically the cuda enabled version for efficient proccessing.
 
-## CUDA Installation 
-
-https://developer.nvidia.com/cuda-toolkit
-
-Use the above link to download the Nvidia developer CUDA Toolkit.
-After downloading the CUDA Toolkit
-Download specific torch distribution for the toolkit
-
-*Current project toolkit version and torch version*
-
-CUDA 13.0
-torch==2.8.0+cu129
-torchvision==0.23.0+cu129
-
-install this torch distribution from the command line using the following command
-
+2. **Install dependencies**
 ```bash
-    pip install torch torchvision --index-url https://download.pytorch.org/whl/cu129
+pip install torch transformers
+pip install spotipy pyttsx3 speechrecognition pyautogui
+pip install sounddevice numpy vobject pywhatkit requests python-dotenv
 ```
 
+3. **Set up environment variables**
 
-Also, PulseAI is configured to use Firefox for web searches. Ensure Firefox is installed, or modify the path in the code to your preferred browser.
+Create a `.env` file in the project root:
+```env
+TRANSFORMER_CACHE=/path/to/cache
+SPOTIPY_ID=your_spotify_client_id
+SPOTIPY_SECRET=your_spotify_client_secret
+SPOTIFY_PATH=C:\Path\To\Spotify.exe
+```
 
-## Usage
-0. Configuration:
+4. **Add your contacts** (Optional)
 
-- <p>create a .env file with your own spotify dev api keys and set transformer cache path and spotify path<br>
-use the variable names as follows in the .env file<br>
-SPOTIPY_ID = "your cliend id"<br>
-SPOTIPY_SECRET = "your client secret"<br>
-SPOTIFY_PATH = "path to spotify.exe on your device"<br>
-BROWSER_PATH = "path to firefox.exe on your device"<br>
-TRANSFORMER_CACHE = "your path here"<br>
-<p>
-- <p>export your contacts from google contacts as a .vcf file and place it in the model's working directory<p>
+Place a `contacts.vcf` file in the project directory for WhatsApp integration.
 
-1. Initialize:
+5. **Run PulseAI**
+```bash
+python pulseai.py
+```
 
-- Run the program and enter your name when prompted to personalize the experience.
+---
 
-2. Commands:
+## 🎯 Usage
 
-- Greet: Just say "Hello," "Hi," or "Good Morning," etc.
-- Ask the Time or Date: Use "What time is it?" or "What’s today’s date?"
-- Open Websites: Say "Open [website name]" (e.g., "Open Google").
-- Wikipedia Search: Say "What is [topic]" to get a Wikipedia summary.
-- Take a Screenshot: Just say "Take a screenshot."
-- Remember Notes: Say "Remember that [note]" to save information.
-- Recall Notes: Use "Do you remember?" to hear stored information.
-- Play a Song: Say "Play [song name]" to play a song on spotify.
-- Send a message on whatsapp: Say send a message to "recipient". You'll be asked to dictate your message. 
-- End Session: Say "Power off" to exit PulseAI.
+### Wake Word Activation
 
-3. Error Handling:
+PulseAI listens for the wake word **"Pulse"** to activate:
 
-- If speech recognition fails or the request cannot be completed, PulseAI will inform you with a spoken error message.
+```
+You: "Pulse"
+PulseAI: "Yes?"
+You: "Play Changes by 2pac"
+PulseAI: *Plays the song on Spotify*
+```
 
-## File Structure
+### Available Commands
 
-1. main.py: The main file containing the code for the assistant.
+| Command | Example | Description |
+|---------|---------|-------------|
+| **Play Music** | "Play Bohemian Rhapsody" | Searches and plays songs on Spotify |
+| **Take Screenshot** | "Take a screenshot" | Captures current screen |
+| **Send WhatsApp** | "Send message to John saying hello" | Sends WhatsApp message to contact |
+| **Web Search** | "Search for Python tutorials" | Opens Google search |
+| **Open Browser** | "Open the browser" | Launches default web browser |
+| **Conversation** | "What's the weather like?" | Engages in natural dialogue |
 
-2. conversation_history.json: Stores old conversations as context so it always remembers almost everything(can get biased in a few situations)
+### Conversation Mode
 
-3. contacts.vcf: this is a file you have to manually place from google contacts in order to use the whatsapp messaging functionality.
+PulseAI maintains context across conversations:
 
-## Code Overview
+```
+You: "What's machine learning?"
+PulseAI: *Provides detailed explanation*
+You: "Give me an example"
+PulseAI: *Continues with relevant example based on previous context*
+```
 
-1. Initialization: Configures the pyttsx3 engine and registers Firefox Browser.
+---
 
-2. Main Functions:
-    - speak(): Text-to-speech for spoken responses.
-    - command(): Listens for user commands.
-    - greet(): Provides time-based greetings.
-    - song_play(): Plays a song on spotify.
-        - wait_for_device(): A helper function to open spotify on a device if not already open.<br>
-            **IF DOWNLOADED FROM MICROSOFT STORE THEN REPLACE THE PATH WITH "start spotify"<br>if downloaded from the spotify website then simply replace with spotify.exe path on your system**
-        - play_song(): The helper function that actually plays the song after connecting to the spotify api.<br>
-            **REPLACE THE "client_id" AND "client_secret" WITH YOUR ID AND API FROM https://developer.spotify.com**
-    - send_whatsapp_message(): this function uses pywhatkit to send a message to one of your contacts extracted from the .vcf file and using existing whatsapp session on your default browser it sends the dictated message.
-3. Loop Execution: The main loop listens for commands and checks them against a set of conditions for executing specific tasks.
+## 🏗️ Architecture
 
-## Customization
+### System Components
 
-You can customize PulseAI by:
+```
+┌─────────────────────────────────────────────────────┐
+│                   Wake Word Detector                 │
+│            (Google API / Whisper Local)              │
+└─────────────────┬───────────────────────────────────┘
+                  │
+┌─────────────────▼───────────────────────────────────┐
+│              Command Processor                       │
+│        (Speech Recognition Pipeline)                 │
+└─────────────────┬───────────────────────────────────┘
+                  │
+┌─────────────────▼───────────────────────────────────┐
+│              Tool Routing System                     │
+│         (Llama 3.2 Classification)                   │
+└─────────┬───────────────────────────┬───────────────┘
+          │                           │
+┌─────────▼─────────┐       ┌────────▼────────────────┐
+│   Tool Executor   │       │   Chat Generator        │
+│  (Actions/APIs)   │       │  (Conversational AI)    │
+└───────────────────┘       └─────────────────────────┘
+```
 
-- Adding more websites to the websites dictionary.<br>
-    **THIS WILL BE REPLACED BY A MORE GENERALISED WAY TO REDUCE EFFORT AND ASSIST BETTER**
+### Core Technologies
 
-- Expanding conversational_responses with additional responses.<br>
-    **THIS WILL BE REPLACED BY A GPT IN FUTURE UPDATES**
+- **LLM**: Meta Llama 3.2 3B Instruct (via Hugging Face Transformers)
+- **ASR**: Google Web Speech API / OpenAI Whisper Small
+- **TTS**: pyttsx3 (Cross-platform text-to-speech)
+- **APIs**: Spotify Web API, WhatsApp via pywhatkit
 
-- Adjusting the speech rate or voice type in the speak() function.
+---
 
+## 🛠️ Configuration
 
-**Troubleshooting**
+### Spotify Setup
 
-- No Response to Commands: Ensure your microphone is working and configured correctly.
+1. Go to [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
+2. Create a new app
+3. Copy Client ID and Client Secret to `.env`
+4. Add `http://localhost:8080` as redirect URI
 
-- Incorrect Recognition: If speech recognition accuracy is low, try speaking more clearly or adjusting recog.pause_threshold in the command() function.
+### Model Configuration
 
-- Problems with browser search: Make sure you have an internet connection for fetching data from Internet.
+Edit the model selection in the code:
 
-## Spotify API Usage
+```python
+model_name = "meta-llama/Llama-3.2-3B-Instruct"  # Current default
+# model_name = "google/flan-t5-base"             # Alternative lighter model
+```
 
-This project utilizes the Spotify Web API to search for and play music. To use this application, you will need to generate your own API credentials from the <a href = "https://developer.spotify.com">Spotify Developer Dashboard.</a>
+### Speech Recognition Modes
 
-**Data Handling and Compliance**
+- **Online Mode**: Uses Google Web Speech API (accurate, requires internet)
+- **Offline Mode**: Uses Whisper (privacy-focused, works without internet)
 
-- **No Data Ingestion**:This application does not ingest, store, cache, or copy any data returned by the Spotify API. All API calls are made in real-time to fulfill a user's direct action (e.g., searching for a song).
+The system automatically switches based on internet connectivity.
 
-- **User Responsibility**:As a user of this project, you are responsible for creating and managing your own Spotify API keys and adhering to the <a href = "https://developer.spotify.com/terms">Spotify Developer Terms of Service.</a>
+---
+
+## 🧩 Project Structure
+
+```
+pulseai/
+├── pulseai.py              # Main application file
+├── conversation_history.json  # Persistent conversation context
+├── contacts.vcf            # WhatsApp contacts (user-provided)
+├── .env                    # Environment variables
+├── requirements.txt        # Python dependencies
+└── README.md              # This file
+```
+
+---
+
+## 🔧 Development
+
+### Adding New Tools
+
+1. **Define the tool in the tool system prompt**:
+```python
+tool_system_prompt = """
+...
+- [TOOL: your_tool, param: description] - Tool description
+...
+"""
+```
+
+2. **Implement the tool function**:
+```python
+def your_tool(param):
+    # Your implementation
+    pass
+```
+
+3. **Add to tool dispatcher**:
+```python
+def tool_dispatcher(response):
+    # ... existing code ...
+    elif tool_name == "your_tool":
+        your_tool(params.get('param'))
+        return tool_name, "Tool executed."
+```
+
+### Conversation History
+
+Conversations are automatically saved to `conversation_history.json` with the following structure:
+
+```json
+[
+  {"role": "system", "content": "System prompt..."},
+  {"role": "user", "content": "User query"},
+  {"role": "assistant", "content": "AI response"}
+]
+```
+
+---
+
+## 🔒 Privacy & Security
+
+- ✅ **Local Processing**: All LLM inference runs on your machine
+- ✅ **No Data Sharing**: Conversations stay on your device
+- ✅ **Offline Capable**: Core features work without internet
+- ⚠️ **API Usage**: Spotify and WhatsApp integrations require external services
+
+---
+
+## 📋 Requirements
+
+### Hardware
+- CPU: Multi-core processor (Intel i5/Ryzen 5 or better)
+- RAM: 8GB minimum (16GB recommended)
+- GPU: NVIDIA GPU with CUDA support (optional but recommended)
+- Storage: 10GB free space for models
+
+### Software
+- Operating System: Windows 10/11, Linux, macOS
+- Python: 3.8 or higher
+- CUDA Toolkit: 11.8+ (for GPU acceleration)
+
+---
+
+## 🐛 Troubleshooting
+
+### Model Loading Issues
+```bash
+# Clear transformer cache
+rm -rf ~/.cache/huggingface/transformers
+```
+
+### Microphone Not Detected
+```python
+# List available devices
+import sounddevice as sd
+print(sd.query_devices())
+```
+
+### Spotify Connection Failed
+- Ensure Spotify is running and logged in
+- Check redirect URI matches dashboard settings
+- Verify client credentials in `.env`
+
+---
+
+## 🗺️ Roadmap
+
+- [x] Multi-language support
+- [ ] Email integration
+- [ ] Calendar management
+- [ ] File organization automation
+- [ ] Custom workflow creation
+- [ ] Mobile companion app
+- [ ] Plugin system for extensibility
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request. For major changes:
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+---
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- [Meta AI](https://ai.meta.com/) for Llama 3.2
+- [Hugging Face](https://huggingface.co/) for Transformers library
+- [OpenAI](https://openai.com/) for Whisper model
+- [Spotify](https://developer.spotify.com/) for Web API
+
+---
+
+## 📧 Contact
+
+**Project Maintainer**: [Vinayak Varshney]
+
+- GitHub: [@VinayakFTW](https://github.com/VinayakFTW)
+- Email: vinayak.varshney.dev@gmail.com
+
+---
+
+<div align="center">
+
+**⭐ Star this repo if you find it helpful!**
+
+Made with ❤️
+
+</div>
