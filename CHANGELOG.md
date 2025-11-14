@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v1.3.0] - 2025-11-14
+
+### Changed
+- **Major Code Refactoring**: The entire application was refactored from a single monolithic `main.py` script into a modular, package-based architecture.
+- **New Project Structure**: Code is now organized into logical packages:
+    - `pulse_brain`: Handles LLM interfacing and tool dispatching.
+    - `pulse_config`: Manages system prompts, API keys, and history loading.
+    - `pulse_ear`: Contains all speech recognition (ASR) and text-to-speech (TTS) logic.
+    - `pulse_tools`: Holds all individual tool functions (Spotify, WhatsApp, general tools).
+- **Wake Word**: Changed the default wake word from "Pulse" to "wake".
+- **Screenshot Functionality**: Screenshots are now saved with a unique timestamp to `~/PulseAI/Pictures/Screenshots/` to prevent overwriting previous captures.
+
+### Added
+- **Spotify "Liked Songs"**: Added functionality to play the user's "Liked Songs" playlist on Spotify.
+- **Fuzzy Song Matching**: Implemented `difflib` for Spotify search to improve accuracy by finding the closest match to a user's query, rather than just the first result.
+
+### Technical
+- **Modular Imports**: Cleaned up the main `pulseai.py` file, which now primarily handles the main application loop and imports logic from the new packages.
+- **Configuration Centralization**: All system prompts, history functions, and core configuration are now centralized in `pulse_config/config.py`.
+
+### Dependencies
+- Added `difflib` (standard library) for use in `spotify_player.py`.
+
+---
+
 ## [v1.2.0] - 2025-10-24
 
 ### Added

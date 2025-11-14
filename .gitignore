@@ -1,10 +1,9 @@
 .idea
-venv
-data.txt
-pre-main.py
+.venv
 .cache
 .env
 conversation_history.json
 contacts.vcf
 PyWhatKit_DB.txt
-checker.py
+__pycache__
+check.py
