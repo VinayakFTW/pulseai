@@ -160,3 +160,4 @@ wikipedia==1.4.0
 xgboost==3.0.
 pywhatkit
 difflib
+google-generativeai
