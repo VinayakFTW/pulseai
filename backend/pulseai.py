@@ -9,7 +9,7 @@ from pulse_tools.general_tools import greet
 if __name__ == '__main__':
     
     asr_pipeline = load_asr_pipe()
-    llm_pipeline = load_model()
+    client = load_model()
     greet("Vinayak")
     
     conversation_history = load_history()
@@ -19,16 +19,17 @@ if __name__ == '__main__':
 
     while True:
         if listening:
-            query = command(asr_pipeline).lower().strip()
+            # query = command(asr_pipeline).lower().strip()
+            query = input(">").lower().strip()
             
             if not query or query == "0":
                 listening = False
                 continue
 
             tool_check_history = [{"role": "system", "content": tool_system_prompt}, {"role": "user", "content": query}]
-            initial_response, _ = generate_response(query, tool_check_history, llm_pipeline, is_tool_check=True)
+            initial_response, _ = generate_response(query, tool_check_history, client, is_tool_check=True)
 
-            tool_name, tool_result = tool_dispatcher(initial_response, llm_pipeline)
+            tool_name, tool_result = tool_dispatcher(initial_response, client)
 
             if tool_name:
                 print(f"Executed tool: {tool_name}")
@@ -44,7 +45,11 @@ if __name__ == '__main__':
                 
                 print("Model designated as chat. Generating conversational response...")
                 
-                chat_response, conversation_history = generate_response(_query=query, history=conversation_history)
+                chat_response, conversation_history = generate_response(
+                                                                        _query=query,
+                                                                        history=conversation_history,
+                                                                        client=client
+                                                                        )
                 print(f"PulseAI: {chat_response}")
                 speak(chat_response)
                 time.sleep(1)
