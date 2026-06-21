@@ -13,7 +13,7 @@ BLOCK_SIZE = 800     # How many audio frames per block/chunk
 CHANNELS = 1         # Mono audio
 DTYPE = "float32"
 SILENCE_THRESHOLD = 0.02  # Audio energy threshold to consider as speech
-SILENCE_DURATION = 1.5
+SILENCE_DURATION = 3.5
 
 
 
@@ -61,7 +61,7 @@ def command_google():
     _recog = sr.Recognizer()
     with sr.Microphone() as _source:
         print("Listening... (Google Online)")
-        _recog.pause_threshold = 1
+        _recog.pause_threshold = 3
         _recog.adjust_for_ambient_noise(_source, duration=1)
         _audio = _recog.listen(_source)
     

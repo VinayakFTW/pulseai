@@ -9,7 +9,7 @@ from pulse_tools.general_tools import greet
 if __name__ == '__main__':
     
     asr_pipeline = load_asr_pipe()
-    llm_pipeline, terminators = load_model(LOCAL_MODEL_ID)
+    llm_pipeline = load_model()
     greet("Vinayak")
     
     conversation_history = load_history()
@@ -26,9 +26,9 @@ if __name__ == '__main__':
                 continue
 
             tool_check_history = [{"role": "system", "content": tool_system_prompt}, {"role": "user", "content": query}]
-            initial_response, _ = generate_response(query, tool_check_history, llm_pipeline, terminators, is_tool_check=True)
+            initial_response, _ = generate_response(query, tool_check_history, llm_pipeline, is_tool_check=True)
 
-            tool_name, tool_result = tool_dispatcher(initial_response, llm_pipeline, terminators)
+            tool_name, tool_result = tool_dispatcher(initial_response, llm_pipeline)
 
             if tool_name:
                 print(f"Executed tool: {tool_name}")
@@ -44,7 +44,7 @@ if __name__ == '__main__':
                 
                 print("Model designated as chat. Generating conversational response...")
                 
-                chat_response, conversation_history = generate_response(query, conversation_history, llm_pipeline,terminators)
+                chat_response, conversation_history = generate_response(_query=query, history=conversation_history)
                 print(f"PulseAI: {chat_response}")
                 speak(chat_response)
                 time.sleep(1)

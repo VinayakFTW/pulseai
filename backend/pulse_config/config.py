@@ -4,7 +4,6 @@ import platform
 
 os_name = platform.system()
 
-LOCAL_MODEL_ID = "meta-llama/Llama-3.2-3B-Instruct"
 HISTORY_FILE = "conversation_history.json"
 
 def save_history(history):

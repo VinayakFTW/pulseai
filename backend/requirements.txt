@@ -161,3 +161,4 @@ xgboost==3.0.
 pywhatkit
 difflib
 google-generativeai
+openai
