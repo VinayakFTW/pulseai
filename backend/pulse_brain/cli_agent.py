@@ -1,5 +1,5 @@
 import json
-from pulse_config.config import CLI_AGENT_SYSTEM_PROMPT
+from pulse_config.prompts import CLI_AGENT_SYSTEM_PROMPT
 from pulse_tools.general_tools import execute_shell_command
 from pulse_ear.speech_handler import speak
 

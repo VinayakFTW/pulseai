@@ -1,5 +1,8 @@
+import os
 import vobject
 import pywhatkit
+from rapidfuzz import process, fuzz
+
 from pulse_ear.speech_handler import speak
 
 def get_vcf_contacts(file_path):
@@ -24,11 +27,30 @@ def get_vcf_contacts(file_path):
     except Exception as e:
         print(f"Error parsing VCF file: {e}")
         return {}
+    
+def get_best_contact_match(input_name: str, vcf_path: str) -> tuple[str, str] | None:
+    """
+    Finds the closest matching contact name using fuzzy logic.
+    Returns (matched_name, phone_number) if a strong match is found.
+    """
+    names = list(get_vcf_contacts(vcf_path).keys())
+    
+    result = process.extractOne(input_name, names, scorer=fuzz.token_sort_ratio)
+    
+    if result:
+        matched_name, score, _ = result
+        if score >= 80:
+            return matched_name, get_vcf_contacts(vcf_path)[matched_name]['phone']
+            
+    return None
 
 def find_contact(name):
-    contacts = get_vcf_contacts("contacts.vcf")
-    contacts = {**contacts}
-    return contacts.get(name.lower())
+    current_dir = os.path.dirname(__file__) 
+    vcf_path = os.path.join(current_dir, '..', 'contacts.vcf')
+    best_match = get_best_contact_match(name, vcf_path)
+    if best_match:
+        return {'name': best_match[0], 'phone': best_match[1]}
+    return None
 
 def send_whatsapp_message(contact_name, message):
     if not contact_name or not message:
@@ -41,8 +63,11 @@ def send_whatsapp_message(contact_name, message):
         try:
             pywhatkit.sendwhatmsg_instantly(contact['phone'], full_message)
             speak("Message sent successfully!")
+            return True
         except Exception as e:
             print(f"Error sending WhatsApp message: {e}")
             speak("Sorry, I couldn't send the message.")
+            return False
     else:
         speak(f"Sorry, I couldn't find {contact_name} in your contacts.")
+        return False

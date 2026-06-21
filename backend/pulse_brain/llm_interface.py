@@ -1,7 +1,7 @@
 from openai import OpenAI
 from pulse_tools.general_tools import *
 from pulse_tools.spotify_player import song_play
-from pulse_tools.messaging import send_whatsapp_message
+from pulse_tools.messaging import send_whatsapp_message, find_contact
 from pulse_brain.vlm_agent import start_vision_agent_loop
 from pulse_brain.cli_agent import start_cli_agent_loop
 import re
@@ -65,7 +65,7 @@ def parse_tool_call(response):
         if not params_str and tool_name in ["open_browser", "screenshot"]:
              return tool_name, {}
     
-        if tool_name in ["cli_agent", "vision_agent", "song_play", "web_search"]:
+        if tool_name in ["cli_agent", "vision_agent", "song_play", "web_search", "find_contact"]:
             if ':' in params_str:
                 key, value = params_str.split(':', 1)
                 params[key.strip()] = value.strip()
@@ -110,9 +110,18 @@ def tool_dispatcher(response,llm_pipeline):
     elif tool_name == "screenshot":
         result_message = take_screenshot_and_save()
         return tool_name, "Screenshot taken."
+    elif tool_name == "find_contact":
+        contact_info = find_contact(params.get('name'))
+        if contact_info:
+            return tool_name, f"Contact info: {contact_info}"
+        else:   
+            return tool_name, "Contact not found."
     elif tool_name == "send_whatsapp_message":
-        send_whatsapp_message(params.get('contact'), params.get('message'))
-        return tool_name, "Message sent."
+        flag = send_whatsapp_message(params.get('contact'), params.get('message'))
+        if flag:
+            return tool_name, "Message sent."
+        else:
+            return tool_name, "Failed to send message."
     elif tool_name == "web_search":
         web_search(params.get('query'))
         return tool_name, "Searching the web."
