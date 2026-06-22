@@ -1,0 +1,11 @@
+{
+  "name": "General_Utilities",
+  "description": "Provides simple utilities like screenshots and web searches.",
+  "trigger_conditions": ["screenshot", "search", "browser"],
+  "tools": ["screenshot", "web_search", "open_browser"],
+  "tool_descriptions": [
+    "\"screenshot\", arguments: {} - Takes a screenshot of the current screen.",
+    "\"web_search\", arguments: {\"query\": \"search term\"} - Searches the web via a browser.",
+    "\"open_browser\", arguments: {} - Opens a new web browser window."
+  ]
+}

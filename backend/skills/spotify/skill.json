@@ -1,0 +1,10 @@
+{
+  "name": "SpotifyControl",
+  "description": "Used to control music playback on Spotify.",
+  "trigger_conditions": ["play", "music", "song", "spotify"],
+  "tools": ["song_play"],
+  "tool_descriptions": [
+    "\"song_play\", arguments: {\"_query\": \"song name\"} - Plays a song on Spotify."
+  ],
+  "system_prompt_addition": "You have access to Spotify via the song_play tool."
+}

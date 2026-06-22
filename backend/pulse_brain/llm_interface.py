@@ -43,54 +43,35 @@ def generate_response(_query, history, client, is_tool_check=False):
         print(f"Error generating response from OpenAI: {e}")
         return "I seem to be having some trouble with my thoughts right now.", history
 
+import json
+
 def parse_tool_call(response):
     """
-    More robustly parses the [TOOL: ...] string, even with complex params.
+    Parses the JSON tool command.
     """
     try:
-        if not response.strip().startswith("[TOOL:") or not response.strip().endswith("]"):
-            return None, None
+        # Try to find JSON block if there is extra text
+        json_str = response.strip()
+        if "```json" in json_str:
+            json_str = json_str.split("```json")[1].split("```")[0].strip()
+        elif "```" in json_str:
+            json_str = json_str.split("```")[1].split("```")[0].strip()
 
-        print(f"Tool command received: {response}")
-        command_str = response.strip()[6:-1]
-
-        match = re.match(r"^\s*([a-zA-Z0-9_]+)\s*,?(.*)", command_str, re.S)
-        if not match:
-            return None, None
-            
-        tool_name = match.group(1).strip()
-        params_str = match.group(2).strip()
-        params = {}
-
-        if not params_str and tool_name in ["open_browser", "screenshot"]:
-             return tool_name, {}
-    
-        if tool_name in ["cli_agent", "vision_agent", "song_play", "web_search", "find_contact"]:
-            if ':' in params_str:
-                key, value = params_str.split(':', 1)
-                params[key.strip()] = value.strip()
-            return tool_name, params
+        print(f"Parsing JSON command: {json_str}")
+        data = json.loads(json_str)
         
-
-        # Handle multi-parameter tools like send_whatsapp_message
-        if tool_name == "send_whatsapp_message":
-            # Find the last 'message:' parameter
-            match_msg = re.search(r"message:\s*(.+)", params_str, re.S)
-            if not match_msg:
-                return tool_name, {} # Failed to parse
-                
-            params['message'] = match_msg.group(1).strip()
+        action = data.get("action")
+        arguments = data.get("arguments", {})
+        
+        if action == "chat":
+            return "[CHAT]", {}
             
-            # Find the contact
-            contact_part = params_str.split(',')[0]
-            if "contact:" in contact_part:
-                 params['contact'] = contact_part.split(':', 1)[1].strip()
-
-            return tool_name, params
-
-        return tool_name, params
+        return action, arguments
+    except json.JSONDecodeError as e:
+        print(f"Error parsing tool command as JSON: {e}. Full response: {response}")
+        return None, None
     except Exception as e:
-        print(f"Error parsing tool command: {e}. Full response: {response}")
+        print(f"Unexpected error parsing tool command: {e}")
         return None, None
 
 def tool_dispatcher(response,llm_pipeline):
@@ -99,9 +80,11 @@ def tool_dispatcher(response,llm_pipeline):
     """
     tool_name, params = parse_tool_call(response)
 
+    if tool_name == "[CHAT]":
+        return "[CHAT]", ""
+
     if not tool_name:
-        if response != "[CHAT]":
-            print(f"Unknown tool format: {response}")
+        print(f"Unknown or invalid JSON format: {response}")
         return None, None
     
     if tool_name == "song_play":

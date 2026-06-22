@@ -1,0 +1,10 @@
+{
+  "name": "Vision_Agent",
+  "description": "Used for UI automation tasks requiring mouse clicks, typing, or reading the screen.",
+  "trigger_conditions": ["click", "type", "ui", "login", "browser UI"],
+  "tools": ["vision_agent"],
+  "tool_descriptions": [
+    "\"vision_agent\", arguments: {\"task\": \"description\"} - Starts a Vision Language Model loop to interact with the GUI."
+  ],
+  "system_prompt_addition": "You can control the computer UI via the vision_agent tool. Delegate tasks requiring GUI interaction to it."
+}

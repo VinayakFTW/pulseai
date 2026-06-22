@@ -4,19 +4,21 @@ import time
 from pulse_ear.speech_handler import listen_for_wake_word,command,load_asr_pipe,speak
 from pulse_config.prompts import tool_system_prompt
 from pulse_brain.llm_interface import tool_dispatcher,load_model,generate_response
-from pulse_brain.memory import *
+from pulse_brain.memory_manager import *
 from pulse_tools.general_tools import greet
+
+from pulse_brain.execution_loop import execute_autonomous_loop
 
 if __name__ == '__main__':
     asr_pipeline = load_asr_pipe()
     client = load_model()
     greet("Vinayak")
     
-    conversation_history = load_history()
     print("Conversation history loaded.")
     
     listening = True
     mode = input("Select mode: (1) Voice\t(2) Text ").strip()
+    
     while True:
         if listening:
             if mode == "1":
@@ -28,42 +30,10 @@ if __name__ == '__main__':
                 listening = False
                 continue
 
-            tool_check_history = [{"role": "system", "content": tool_system_prompt}, {"role": "user", "content": query}]
-            initial_response, _ = generate_response(query, tool_check_history, client, is_tool_check=True)
-
-            tool_name, tool_result = tool_dispatcher(initial_response, client)
-
-            if tool_name:
-                print(f"Executed tool: {tool_name}")
-                speak(tool_result)
-                time.sleep(1)
-                
-                conversation_history.append({"role": "user", "content": query})
-                conversation_history.append({"role": "assistant", "content": f"Executed tool: {tool_name}"})
-                save_history(conversation_history)
-                listening = False
+            execute_autonomous_loop(client, initial_query=query)
+            listening = False
             
-            elif "[CHAT]" in initial_response:
-                
-                print("Model designated as chat. Generating conversational response...")
-                
-                chat_response, conversation_history = generate_response(
-                                                                        _query=query,
-                                                                        history=conversation_history,
-                                                                        client=client
-                                                                        )
-                print(f"PulseAI: {chat_response}")
-                speak(chat_response)
-                time.sleep(1)
-                save_history(conversation_history)
-                
-            else:
-                print(f"PulseAI (Fallback): {initial_response}")
-                speak("I'm not sure how to handle that.")
-                listening = False
-                
         else:
-            if 'vision' or 'cli' in tool_name:
-                    listening = True
             if listen_for_wake_word(asr_pipeline, "wake"):
                 speak("Yes?")
+                listening = True

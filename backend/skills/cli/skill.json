@@ -1,0 +1,10 @@
+{
+  "name": "CLI_Agent",
+  "description": "Used for any task that requires terminal commands, file operations, or running scripts.",
+  "trigger_conditions": ["terminal", "bash", "shell", "run script", "list files", "git"],
+  "tools": ["cli_agent"],
+  "tool_descriptions": [
+    "\"cli_agent\", arguments: {\"task\": \"description\"} - Starts an autonomous CLI agent to accomplish the described task."
+  ],
+  "system_prompt_addition": "You have access to a CLI agent via the cli_agent tool. Delegate multi-step terminal tasks to it."
+}

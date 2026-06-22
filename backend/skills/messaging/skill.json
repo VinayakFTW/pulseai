@@ -1,0 +1,10 @@
+{
+  "name": "MessagingExpert",
+  "description": "Used to send messages to contacts.",
+  "trigger_conditions": ["message", "whatsapp", "tell", "send"],
+  "tools": ["find_contact", "send_whatsapp_message"],
+  "tool_descriptions": [
+    "\"find_contact\", arguments: {\"name\": \"<approximate_name>\"} - Searches the user's contacts.",
+    "\"send_whatsapp_message\", arguments: {\"contact\": \"<approximate_name>\", \"message\": \"<generated_message>\"} - Dispatches a WhatsApp message."
+  ]
+}
