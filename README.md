@@ -14,15 +14,17 @@ PulseAI is a sophisticated voice-activated AI assistant that runs locally on you
 
 ## ✨ Key Features
 
+- 🧠 **Autonomous Agent Architecture** - Goal-driven planning, execution, and reflection loops
+- 🎯 **Goal Management & Planning** - Automatically breaks down complex requests into actionable sub-goals
+- 💾 **Long-Term Memory** - Persistent context and learning across sessions via `.pulse/long_term_memory.json`
+- 🛠️ **Modular Skill System** - Extensible architecture with dedicated handlers (`skills/` directory)
 - 🎤 **Hybrid Speech Recognition** - Automatic fallback between Google Web Speech API (online) and Whisper (offline)
-- 🧠 **Local LLM Processing** - Privacy-focused AI using Llama 3.2 3B Instruct model
+- 🔐 **Local LLM Processing** - Privacy-focused AI using Llama 3.2 3B Instruct model
 - 🎵 **Spotify Integration** - Voice-controlled music playback (including Liked Songs)
 - 💬 **WhatsApp Automation** - Send messages via voice commands
 - 🔍 **Web Search** - Intelligent web queries with contextual understanding
-- 📸 **Screenshot Capture** - Quick screen captures on demand (with timestamped filenames)
-- 🔄 **Conversation Memory** - Persistent context across sessions
+- 📸 **Screenshot Capture** - Quick screen captures on demand
 - 🌐 **Internet-Aware** - Seamless online/offline mode switching
-- 🛠️ **Tool Routing System** - Smart command classification and execution
 
 ## 🚀 Quick Start
 
@@ -169,17 +171,27 @@ The system automatically switches based on internet connectivity.
 pulseai/
 ├── backend/
 │   ├── pulseai.py              # Main application file
-│   ├── pulse_brain/
-│   │   └── llm_interface.py    # LLM loading and tool dispatcher
+│   ├── pulse_brain/            # Core Agentic Logic
+│   │   ├── execution_loop.py   # Autonomous execution loop
+│   │   ├── goal_manager.py     # Goal creation and tracking
+│   │   ├── llm_interface.py    # LLM loading and tool dispatcher
+│   │   ├── memory_manager.py   # Long-term and working memory
+│   │   ├── planner.py          # LLM-based task planning
+│   │   ├── reflection.py       # Self-correction and evaluation
+│   │   └── skill_manager.py    # Dynamic skill loading
+│   ├── skills/                 # Modular capabilities
+│   │   ├── cli/                # Command Line actions
+│   │   ├── general/            # Web search, calculations, etc.
+│   │   ├── messaging/          # WhatsApp automation
+│   │   ├── spotify/            # Spotify playback control
+│   │   └── vision/             # Screen capture and analysis
 │   ├── pulse_config/
 │   │   └── config.py           # System prompts, history, config
 │   ├── pulse_ear/
 │   │   └── speech_handler.py   # ASR and TTS functions
-│   ├── pulse_tools/
-│   │   ├── general_tools.py    # Screenshot, web search, etc.
-│   │   ├── messaging.py        # WhatsApp integration
-│   │   └── spotify_player.py   # Spotify integration
-│   ├── conversation_history.json # Persistent conversation context
+│   ├── .pulse/
+│   │   ├── long_term_memory.json # Persistent memory storage
+│   │   └── soul.md             # Core persona definition
 │   ├── contacts.vcf            # WhatsApp contacts (user-provided)
 │   └── .env                    # Environment variables
 ├── .gitignore
@@ -189,54 +201,36 @@ pulseai/
 
 ## 🔧 Development
 
-### Adding New Tools
+### Adding New Skills
 
-1. **Define the tool in the tool system prompt:**
+The project now uses a modular skill system. To add a new skill:
 
-Edit `backend/pulse_config/config.py`:
-```python
-tool_system_prompt = """
-...
-- [TOOL: your_tool, param: description] - Tool description
-...
-"""
-```
+1. **Create the Skill Directory:**
+Create a new folder in `backend/skills/` (e.g., `backend/skills/my_skill/`).
 
-2. **Implement the tool function:**
-
-Add your function to a new or existing file in `backend/pulse_tools/`:
-```python
-# e.g., in backend/pulse_tools/general_tools.py
-def your_tool(param):
-    # Your implementation
-    pass
-```
-
-3. **Add to tool dispatcher:**
-
-Edit `backend/pulse_brain/llm_interface.py`:
-```python
-# Import your new function
-from pulse_tools.general_tools import your_tool
-
-def tool_dispatcher(response):
-    # ... existing code ...
-    elif tool_name == "your_tool":
-        your_tool(params.get('param'))
-        return tool_name, "Tool executed."
-```
-
-### Conversation History
-
-Conversations are automatically saved to `backend/conversation_history.json` with the following structure:
-
+2. **Define the Skill Metadata (`skill.json`):**
+Create a `skill.json` file in your new directory:
 ```json
-[
-  {"role": "system", "content": "System prompt..."},
-  {"role": "user", "content": "User query"},
-  {"role": "assistant", "content": "AI response"}
-]
+{
+  "name": "MySkill",
+  "version": "1.0",
+  "description": "Does something amazing",
+  "tools": ["my_custom_tool"],
+  "tool_descriptions": [
+    "[TOOL: my_custom_tool, param: description] - Explains what the tool does"
+  ]
+}
 ```
+
+3. **Implement the Handler (`handler.py`):**
+Create a `handler.py` file in the same directory:
+```python
+def my_custom_tool(param):
+    print(f"Executing my custom tool with param: {param}")
+    return "Success"
+```
+
+The `SkillManager` will automatically discover and load your new skill on startup.
 
 ## 🔒 Privacy & Security
 

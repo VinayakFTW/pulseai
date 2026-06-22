@@ -1,0 +1,68 @@
+[
+    {
+        "id": "goal_a22b3859",
+        "title": "Research Modern AI Architectures and Save Findings to a Text File",
+        "description": "Conduct a structured research process on state-of-the-art AI architectures (e.g., Transformers, Mamba, Diffusion Models, Mixture of Experts) and produce a comprehensive, well-organized summary saved as a plain text file.",
+        "priority": "medium",
+        "parent_id": null,
+        "status": "PENDING",
+        "child_ids": [
+            "goal_5c206d83",
+            "goal_29869354",
+            "goal_5dc8d11b",
+            "goal_ac6b8b8b",
+            "goal_0ee9d539"
+        ],
+        "checkpoints": []
+    },
+    {
+        "id": "goal_5c206d83",
+        "title": "Scope and Prioritize Architectures",
+        "description": "Define the specific set of modern AI architectures to investigate (e.g., Transformer variants, Mamba, Stable Diffusion, MoE). Prioritize based on impact, novelty, and relevance to current trends. Create a shortlist of 3\u20135 architectures for deep research.",
+        "priority": "medium",
+        "parent_id": "goal_a22b3859",
+        "status": "PENDING",
+        "child_ids": [],
+        "checkpoints": []
+    },
+    {
+        "id": "goal_29869354",
+        "title": "Gather Detailed Information",
+        "description": "For each architecture in the shortlist, collect key details: core innovation, architecture diagram/logic, typical use cases, performance benchmarks, strengths, and limitations. Use reliable sources such as arXiv papers, official blogs, and known tutorials.",
+        "priority": "medium",
+        "parent_id": "goal_a22b3859",
+        "status": "PENDING",
+        "child_ids": [],
+        "checkpoints": []
+    },
+    {
+        "id": "goal_5dc8d11b",
+        "title": "Synthesize and Structure Findings",
+        "description": "Organize the collected information into a coherent narrative. Plan a document structure: header with date & scope, individual sections per architecture, a comparative summary, and references. Ensure each section covers high-level concept, key technical points, and practical implications.",
+        "priority": "medium",
+        "parent_id": "goal_a22b3859",
+        "status": "PENDING",
+        "child_ids": [],
+        "checkpoints": []
+    },
+    {
+        "id": "goal_ac6b8b8b",
+        "title": "Compose the Summary Text",
+        "description": "Write the full text incorporating all sections. Use clear, concise language suitable for a technical audience. Include a brief introduction, architecture\u2011specific paragraphs, and a conclusion comparing trade\u2011offs and suggesting use cases. Add reference citations where appropriate.",
+        "priority": "medium",
+        "parent_id": "goal_a22b3859",
+        "status": "PENDING",
+        "child_ids": [],
+        "checkpoints": []
+    },
+    {
+        "id": "goal_0ee9d539",
+        "title": "Save to Text File",
+        "description": "Write the composed summary to a local text file (e.g., 'modern_ai_architectures.txt'). Ensure proper formatting (line breaks, sections) and handle any file I/O errors gracefully. Confirm the file was saved successfully and output its location.",
+        "priority": "medium",
+        "parent_id": "goal_a22b3859",
+        "status": "PENDING",
+        "child_ids": [],
+        "checkpoints": []
+    }
+]

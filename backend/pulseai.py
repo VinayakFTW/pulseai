@@ -2,8 +2,7 @@ from dotenv import load_dotenv
 load_dotenv()
 import time
 from pulse_ear.speech_handler import listen_for_wake_word,command,load_asr_pipe,speak
-from pulse_config.prompts import tool_system_prompt
-from pulse_brain.llm_interface import tool_dispatcher,load_model,generate_response
+from pulse_brain.llm_interface import load_model
 from pulse_brain.memory_manager import *
 from pulse_tools.general_tools import greet
 
